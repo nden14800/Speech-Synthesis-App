@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Speech Synthesis (Gemini 2.5 Flash TTS)</title>
+    <title>Speech Synthesis App</title>
     <!-- Google Fonts: Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,17 +23,16 @@
             --text-secondary: #606060;
             --input-bg: #f9f9f9;
             --input-border: #cccccc;
-            --primary-color: #3ea6ff; 
+            --primary-color: #3ea6ff; /* ソフトな青 */
             --primary-hover: #065fd4;
-            --ai-color: #7c4dff; /* AI機能用: 紫系 */
-            --ai-hover: #651fff;
             --danger-color: #ff0000;
+            --danger-hover: #cc0000;
             --slider-track: #e5e5e5;
-            --slider-fill: #ff0000;
+            --slider-fill: #ff0000; /* 再生バーは赤系が一般的 */
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             --focus-ring: rgba(62, 166, 255, 0.3);
             
-            /* 字幕用設定 */
+            /* 字幕用設定 (YouTubeライク) */
             --caption-bg: rgba(8, 8, 8, 0.75);
             --caption-text: #ffffff;
         }
@@ -49,9 +48,8 @@
                 --input-border: #3f3f3f;
                 --primary-color: #3ea6ff;
                 --primary-hover: #65b8ff;
-                --ai-color: #b388ff;
-                --ai-hover: #7c4dff;
                 --danger-color: #ff4e45;
+                --danger-hover: #ff0000;
                 --slider-track: #3f3f3f;
                 --slider-fill: #ff0000;
                 --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -104,16 +102,11 @@
             justify-content: center;
             gap: 10px;
         }
-        
-        .ai-badge {
-            font-size: 0.8rem;
-            background-color: var(--ai-color);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            vertical-align: middle;
-            margin-left: 5px;
-            letter-spacing: 0.5px;
+
+        .subtitle-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
         }
 
         /* =========================================
@@ -129,9 +122,6 @@
             font-weight: 500;
             color: var(--text-primary);
             font-size: 0.9rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         textarea {
@@ -202,12 +192,6 @@
             accent-color: var(--primary-color);
             height: 4px;
         }
-        
-        /* ピッチはAPIの性質上無効化する場合のスタイル */
-        .disabled-control {
-            opacity: 0.5;
-            pointer-events: none;
-        }
 
         /* =========================================
            進捗バー & タイム表示
@@ -228,20 +212,23 @@
             letter-spacing: 0.5px;
         }
 
+        /* スライダーコンテナ */
         .custom-slider-container {
             width: 100%;
-            height: 3px;
+            height: 3px; /* 極細 */
             background-color: var(--slider-track);
             border-radius: 2px;
             position: relative;
             overflow: hidden;
         }
 
+        /* 中身のバー */
         .custom-slider-fill {
             height: 100%;
             width: 0%;
             background-color: var(--slider-fill);
             border-radius: 2px;
+            /* 非常に滑らかに動くようにtransitionを設定 */
             transition: width 0.1s linear; 
             position: relative;
         }
@@ -251,7 +238,6 @@
            ========================================= */
         .action-buttons {
             display: flex;
-            flex-wrap: wrap;
             gap: 1rem;
             margin-bottom: 1rem;
         }
@@ -260,7 +246,7 @@
             flex: 1;
             padding: 0.8rem;
             border: none;
-            border-radius: 24px;
+            border-radius: 24px; /* 丸みのあるピル型 */
             font-size: 0.95rem;
             font-weight: 500;
             cursor: pointer;
@@ -268,22 +254,23 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            transition: background-color 0.2s, transform 0.1s;
-            min-width: 120px;
+            transition: background-color 0.2s;
         }
 
         .btn:active {
             transform: scale(0.98);
         }
 
-        /* AI再生ボタン */
-        .btn-ai {
-            background-color: var(--ai-color);
-            color: #ffffff;
+        .btn-primary {
+            background-color: var(--text-primary); /* モノクロ基調 */
+            color: var(--card-bg);
         }
-        .btn-ai:hover {
-            background-color: var(--ai-hover);
-            opacity: 0.95;
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-text {
@@ -293,11 +280,6 @@
         }
         .btn-text:hover {
             background-color: var(--input-bg);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
         }
 
         .subtitle-toggle-wrapper {
@@ -325,20 +307,20 @@
             color: var(--text-primary);
         }
         .btn-icon-text.active i {
-            color: var(--danger-color);
+            color: var(--danger-color); /* ONインジケータ */
         }
 
         /* =========================================
-           字幕オーバーレイ
+           YouTube風 字幕オーバーレイ
            ========================================= */
         .caption-container {
             position: absolute;
-            bottom: 120px;
+            bottom: 120px; /* コントロールの上に配置 */
             left: 0;
             width: 100%;
             display: flex;
             justify-content: center;
-            pointer-events: none;
+            pointer-events: none; /* 下の要素をクリック可能に */
             opacity: 0;
             transition: opacity 0.2s ease;
             z-index: 10;
@@ -352,26 +334,17 @@
         .caption-text {
             background-color: var(--caption-bg);
             color: var(--caption-text);
-            padding: 8px 16px;
+            padding: 4px 12px;
             border-radius: 4px;
             font-size: 1.1rem;
             line-height: 1.4;
             text-align: center;
             display: inline-block;
             max-width: 90%;
+            /* YouTubeフォントスタイル */
             font-family: 'Roboto', Arial, sans-serif;
             font-weight: 400;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            white-space: pre-wrap; /* 改行を維持 */
-        }
-
-        /* Loading Spinner */
-        .spinner-icon {
-            display: none;
-            animation: rotate 1s linear infinite;
-        }
-        @keyframes rotate {
-            100% { transform: rotate(360deg); }
         }
 
     </style>
@@ -380,20 +353,20 @@
 
     <div class="container">
         <header>
-            <h1><i class="bi bi-soundwave"></i> AI音声読み上げ <span class="ai-badge">Gemini 2.5 Flash TTS</span></h1>
+            <h1><i class="bi bi-volume-up-fill"></i> 音声読み上げ</h1>
         </header>
 
         <!-- 入力エリア -->
         <div class="input-group">
-            <label for="text-input">読み上げるテキスト</label>
+            <label for="text-input">テキスト入力</label>
             <textarea id="text-input" placeholder="ここに読み上げたい文章を入力してください。"></textarea>
         </div>
 
         <!-- 設定エリア -->
         <div class="input-group">
-            <label for="voice-select">音声モデル</label>
-            <select id="voice-select" disabled>
-                <option value="gemini-2.5-flash-tts" selected>Gemini 2.5 Flash TTS (AI生成)</option>
+            <label for="voice-select">音声</label>
+            <select id="voice-select">
+                <option value="">Loading voices...</option>
             </select>
         </div>
 
@@ -402,9 +375,9 @@
                 <span>速度 <span id="rate-value">1.0</span></span>
                 <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
             </div>
-            <div class="range-wrapper disabled-control">
-                <span>ピッチ (AI版は固定) <span id="pitch-value">1.0</span></span>
-                <input type="range" id="pitch" min="0.5" max="2" value="1" step="0.1" disabled>
+            <div class="range-wrapper">
+                <span>ピッチ <span id="pitch-value">1.0</span></span>
+                <input type="range" id="pitch" min="0.5" max="2" value="1" step="0.1">
             </div>
         </div>
 
@@ -423,12 +396,9 @@
 
         <!-- ボタン類 -->
         <div class="action-buttons">
-            <!-- AI再生ボタン -->
-            <button id="ai-play-btn" class="btn btn-ai">
-                <i class="bi bi-play-circle-fill"></i> <span class="btn-label">AI読み上げ</span>
-                <svg class="spinner-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/></svg>
+            <button id="speak-btn" class="btn btn-primary">
+                <i class="bi bi-play-fill"></i> 再生
             </button>
-            
             <button id="stop-btn" class="btn btn-text">
                 <i class="bi bi-stop-fill"></i> 停止
             </button>
@@ -447,18 +417,22 @@
         // JavaScript Logic
         // ==========================================
 
-        const WORKER_URL = 'https://aivoice.nden14800.workers.dev';
-        
-        // オーディオ管理用変数
-        let currentAudio = null;
-        let progressInterval = null;
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let timerInterval = null;
+        let startTime = 0;
+        let estimatedDuration = 0;
         let isSubtitleOn = false;
+        let sentenceMap = []; // 字幕用の文章マップ
 
         // DOM Elements
         const textInput = document.getElementById('text-input');
+        const voiceSelect = document.getElementById('voice-select');
         const rateInput = document.getElementById('rate');
+        const pitchInput = document.getElementById('pitch');
         const rateValue = document.getElementById('rate-value');
-        const aiPlayBtn = document.getElementById('ai-play-btn');
+        const pitchValue = document.getElementById('pitch-value');
+        const speakBtn = document.getElementById('speak-btn');
         const stopBtn = document.getElementById('stop-btn');
         
         const progressBar = document.getElementById('progress-bar');
@@ -467,187 +441,183 @@
         const captionContainer = document.getElementById('caption-container');
         const captionText = document.getElementById('caption-text');
 
+        // 音声リスト取得
+        function populateVoiceList() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = '';
+
+            if (voices.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = "音声が見つかりません";
+                voiceSelect.appendChild(option);
+                return;
+            }
+
+            // 日本語優先ソート
+            voices.sort((a, b) => {
+                const aLang = a.lang.toUpperCase();
+                const bLang = b.lang.toUpperCase();
+                if (aLang.includes('JP') && !bLang.includes('JP')) return -1;
+                if (!aLang.includes('JP') && bLang.includes('JP')) return 1;
+                return 0;
+            });
+
+            voices.forEach((voice) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.default) option.textContent += ' [Default]';
+                option.setAttribute('data-name', voice.name);
+                voiceSelect.appendChild(option);
+            });
+
+            const jpIndex = Array.from(voiceSelect.options).findIndex(opt => opt.text.includes('JP') || opt.text.includes('ja'));
+            if (jpIndex >= 0) voiceSelect.selectedIndex = jpIndex;
+        }
+
+        populateVoiceList();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
         // 時間フォーマット (m:ss)
         function formatTime(seconds) {
-            if (isNaN(seconds) || seconds < 0) return "0:00";
             const m = Math.floor(seconds / 60);
             const s = Math.floor(seconds % 60);
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        // ==========================================
-        // AI API & Audio Logic
-        // ==========================================
-
-        async function fetchAndPlayAudio() {
-            const text = textInput.value.trim();
-            if (!text) {
-                alert("読み上げるテキストを入力してください。");
-                return;
-            }
-
-            setLoading(true);
-
-            try {
-                // プロキシへリクエスト送信 (Gemini 2.5 Flash TTSモデルを利用)
-                const response = await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: text })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || `Server Error: ${response.status}`);
-                }
-
-                // APIレスポンスから音声データ(Base64)を抽出
-                let audioBase64 = null;
-
-                // 1. 一般的なGoogle系TTS形式 (audioContent)
-                if (data.audioContent) {
-                    audioBase64 = data.audioContent;
-                } 
-                // 2. Gemini Multimodal形式 (inlineData)
-                else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.inlineData?.data) {
-                    audioBase64 = data.candidates[0].content.parts[0].inlineData.data;
-                }
-                // 3. テキストフィールドにBase64が入っている場合（プロキシの仕様による）
-                else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                    const possibleBase64 = data.candidates[0].content.parts[0].text;
-                    // 簡易チェック: スペースを含まず十分長い文字列ならBase64とみなす
-                    if (possibleBase64.length > 50 && !possibleBase64.includes(' ')) {
-                        audioBase64 = possibleBase64;
-                    }
-                }
-
-                if (!audioBase64) {
-                    throw new Error("音声データを取得できませんでした。");
-                }
-
-                playAudioFromBase64(audioBase64, text);
-
-            } catch (error) {
-                console.error('Error:', error);
-                alert(`エラーが発生しました: ${error.message}`);
-                setLoading(false);
-            }
+        // 推定時間の計算
+        function calculateEstimatedDuration(text, rate) {
+            // 日本語は約4-5文字/秒、英語は単語数ベースだが簡易計算
+            const baseCharsPerSec = 5; 
+            const duration = (text.length / baseCharsPerSec) / rate;
+            return Math.max(1, duration);
         }
 
-        function playAudioFromBase64(base64String, originalText) {
-            // 既存のオーディオがあれば停止
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            clearInterval(progressInterval);
-
-            // Audioオブジェクト作成
-            const audioSrc = `data:audio/mp3;base64,${base64String}`;
-            currentAudio = new Audio(audioSrc);
+        // 文章を句読点で分割してマップ化（字幕用）
+        function parseSentencesForCaptions(text) {
+            // 句点、読点、感嘆符、疑問符、改行などで分割しつつ、区切り文字も含める
+            // Split regex lookbehindなどが使えない環境も考慮し、簡易的なマッチングを行う
+            const regex = /[^.。、！？\n\r]+[.。、！？\n\r]*/g;
+            const matches = text.match(regex);
             
-            // 速度設定
-            currentAudio.playbackRate = parseFloat(rateInput.value);
+            if (!matches) return [{ text: text, start: 0, end: text.length }];
 
-            // メタデータ読み込み完了時の処理
-            currentAudio.onloadedmetadata = () => {
-                timeDisplay.textContent = `0:00 / ${formatTime(currentAudio.duration)}`;
-                setLoading(false); // ロード完了でボタン復帰
-                currentAudio.play();
-            };
-
-            // 再生開始時
-            currentAudio.onplay = () => {
-                if (isSubtitleOn) {
-                    captionContainer.classList.add('show');
-                    captionText.textContent = originalText; // AI生成音声にはタイムスタンプがないため全文表示
-                }
-                
-                // プログレスバー更新ループ
-                progressInterval = setInterval(() => {
-                    if (!currentAudio) return;
-                    const duration = currentAudio.duration;
-                    const currentTime = currentAudio.currentTime;
-                    
-                    if (duration > 0) {
-                        const percent = (currentTime / duration) * 100;
-                        progressBar.style.width = `${percent}%`;
-                        timeDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-                    }
-                }, 100);
-            };
-
-            // エラー時
-            currentAudio.onerror = (e) => {
-                console.error("Audio Playback Error", e);
-                alert("音声の再生に失敗しました。");
-                resetUI();
-            };
-
-            // 再生終了時
-            currentAudio.onended = () => {
-                resetUI();
-            };
+            let currentIndex = 0;
+            return matches.map(sentence => {
+                const start = currentIndex;
+                const end = currentIndex + sentence.length;
+                currentIndex = end;
+                return { 
+                    text: sentence.trim(), // 空白除去
+                    start: start, 
+                    end: end 
+                };
+            }).filter(item => item.text.length > 0); // 空の行を除外
         }
 
-        function setLoading(isLoading) {
-            const label = aiPlayBtn.querySelector('.btn-label');
-            const spinner = aiPlayBtn.querySelector('.spinner-icon');
-            const icon = aiPlayBtn.querySelector('.bi-play-circle-fill');
-
-            if (isLoading) {
-                aiPlayBtn.disabled = true;
-                textInput.disabled = true;
-                label.textContent = "生成中...";
-                spinner.style.display = "block";
-                icon.style.display = "none";
+        // 読み上げ開始
+        function speak() {
+            if (synth.speaking) {
+                synth.cancel();
+                setTimeout(startSpeaking, 100);
             } else {
-                aiPlayBtn.disabled = false;
-                textInput.disabled = false;
-                label.textContent = "AI読み上げ";
-                spinner.style.display = "none";
-                icon.style.display = "inline-block";
+                startSpeaking();
+            }
+        }
+
+        function startSpeaking() {
+            const text = textInput.value;
+            if (text === '') return;
+
+            // 字幕用の解析
+            sentenceMap = parseSentencesForCaptions(text);
+
+            const utterThis = new SpeechSynthesisUtterance(text);
+            const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            
+            for (let i = 0; i < voices.length; i++) {
+                if (voices[i].name === selectedOption) {
+                    utterThis.voice = voices[i];
+                    break;
+                }
+            }
+
+            const rate = parseFloat(rateInput.value);
+            utterThis.pitch = pitchInput.value;
+            utterThis.rate = rate;
+
+            estimatedDuration = calculateEstimatedDuration(text, rate);
+            
+            utterThis.onstart = () => {
+                speakBtn.disabled = true;
+                if(isSubtitleOn) captionContainer.classList.add('show');
+                
+                startTime = Date.now();
+                clearInterval(timerInterval);
+                timerInterval = setInterval(updateProgress, 50); // 滑らかさのため50ms更新
+            };
+
+            utterThis.onend = () => {
+                resetUI();
+            };
+
+            utterThis.onerror = (e) => {
+                console.error(e);
+                resetUI();
+            };
+
+            // 字幕の更新ロジック (boundaryイベント利用)
+            utterThis.onboundary = (event) => {
+                if (!isSubtitleOn) return;
+
+                const charIndex = event.charIndex;
+                
+                // 現在の文字位置が含まれる文を探す
+                const currentSentence = sentenceMap.find(s => charIndex >= s.start && charIndex < s.end);
+                
+                if (currentSentence) {
+                    // 同じテキストなら更新しない（DOM負荷軽減）
+                    if (captionText.textContent !== currentSentence.text) {
+                        captionText.textContent = currentSentence.text;
+                    }
+                }
+            };
+
+            synth.speak(utterThis);
+        }
+
+        function updateProgress() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            
+            let percent = (elapsed / estimatedDuration) * 100;
+            if (percent > 100) percent = 100;
+
+            progressBar.style.width = `${percent}%`;
+            timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(estimatedDuration)}`;
+
+            if (elapsed > estimatedDuration + 10 && synth.speaking) {
+                // 安全装置: 推定時間を大幅に超えても終わらない場合（通常はonendが呼ばれる）
             }
         }
 
         function resetUI() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-            }
-            clearInterval(progressInterval);
-            
-            aiPlayBtn.disabled = false;
-            textInput.disabled = false;
-            setLoading(false);
-            
+            speakBtn.disabled = false;
             captionContainer.classList.remove('show');
             captionText.textContent = '';
             
+            clearInterval(timerInterval);
             progressBar.style.width = '0%';
             timeDisplay.textContent = '0:00 / 0:00';
         }
 
-        // ==========================================
-        // Event Listeners
-        // ==========================================
+        // イベントリスナー
+        rateInput.addEventListener('input', () => rateValue.textContent = parseFloat(rateInput.value).toFixed(1));
+        pitchInput.addEventListener('input', () => pitchValue.textContent = parseFloat(pitchInput.value).toFixed(1));
 
-        // 速度変更（再生中でも反映）
-        rateInput.addEventListener('input', () => {
-            const val = parseFloat(rateInput.value);
-            rateValue.textContent = val.toFixed(1);
-            if (currentAudio) {
-                currentAudio.playbackRate = val;
-            }
-        });
-
-        aiPlayBtn.addEventListener('click', fetchAndPlayAudio);
-
+        speakBtn.addEventListener('click', speak);
         stopBtn.addEventListener('click', () => {
-            if (currentAudio) {
-                currentAudio.pause();
-            }
+            synth.cancel();
             resetUI();
         });
 
@@ -656,11 +626,7 @@
             if (isSubtitleOn) {
                 subtitleBtn.innerHTML = '<i class="bi bi-cc-square-fill"></i> 字幕 (ON)';
                 subtitleBtn.classList.add('active');
-                // 再生中なら字幕を表示
-                if (currentAudio && !currentAudio.paused) {
-                    captionContainer.classList.add('show');
-                    captionText.textContent = textInput.value;
-                }
+                if (synth.speaking) captionContainer.classList.add('show');
             } else {
                 subtitleBtn.innerHTML = '<i class="bi bi-cc-square"></i> 字幕 (OFF)';
                 subtitleBtn.classList.remove('active');
