@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speech Synthesis App</title>
+    <title>Speech Synthesis App with Gemini 2.5</title>
     <!-- Google Fonts: Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,33 +13,29 @@
 
     <style>
         /* =========================================
-           テーマ設定 (ライト/ダーク自動切替)
+           テーマ設定
            ========================================= */
         :root {
-            /* ライトモード */
             --bg-color: #f1f1f1;
             --card-bg: #ffffff;
             --text-primary: #0f0f0f;
             --text-secondary: #606060;
             --input-bg: #f9f9f9;
             --input-border: #cccccc;
-            --primary-color: #3ea6ff; /* ソフトな青 */
+            --primary-color: #3ea6ff;
             --primary-hover: #065fd4;
             --danger-color: #ff0000;
-            --danger-hover: #cc0000;
             --slider-track: #e5e5e5;
-            --slider-fill: #ff0000; /* 再生バーは赤系が一般的 */
+            --slider-fill: #ff0000;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             --focus-ring: rgba(62, 166, 255, 0.3);
-            
-            /* 字幕用設定 (YouTubeライク) */
             --caption-bg: rgba(8, 8, 8, 0.75);
             --caption-text: #ffffff;
+            --spinner-color: #007bff;
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                /* ダークモード */
                 --bg-color: #0f0f0f;
                 --card-bg: #1f1f1f;
                 --text-primary: #f1f1f1;
@@ -49,10 +45,10 @@
                 --primary-color: #3ea6ff;
                 --primary-hover: #65b8ff;
                 --danger-color: #ff4e45;
-                --danger-hover: #ff0000;
                 --slider-track: #3f3f3f;
                 --slider-fill: #ff0000;
                 --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                --spinner-color: #1a73e8;
             }
         }
 
@@ -85,7 +81,7 @@
             max-width: 700px;
             padding: 2rem;
             position: relative;
-            overflow: hidden;
+            overflow: hidden; /* ローディングオーバーレイ用 */
             transition: background-color 0.3s;
         }
 
@@ -103,17 +99,12 @@
             gap: 10px;
         }
 
-        .subtitle-desc {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
-        }
-
         /* =========================================
            入力フォーム
            ========================================= */
         .input-group {
             margin-bottom: 1.2rem;
+            position: relative;
         }
 
         label {
@@ -145,27 +136,113 @@
             box-shadow: 0 0 0 3px var(--focus-ring);
         }
 
-        select {
+        /* =========================================
+           カスタムセレクト UI
+           ========================================= */
+        .custom-select-wrapper {
+            position: relative;
+            user-select: none;
             width: 100%;
-            padding: 0.8rem;
-            border-radius: 8px;
-            border: 1px solid var(--input-border);
-            background-color: var(--input-bg);
-            color: var(--text-primary);
-            font-size: 0.95rem;
-            outline: none;
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1em;
         }
-        
-        @media (prefers-color-scheme: dark) {
-            select {
-                background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e0e0e0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            }
+
+        .custom-select-trigger {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem;
+            font-size: 0.95rem;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .custom-select-trigger:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .custom-select-trigger.open {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        .custom-select-trigger::after {
+            content: '';
+            display: block;
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid var(--text-secondary);
+            border-bottom: 2px solid var(--text-secondary);
+            transform: rotate(45deg);
+            margin-right: 5px;
+            transition: transform 0.2s;
+        }
+
+        .custom-select-trigger.open::after {
+            transform: rotate(-135deg);
+        }
+
+        .custom-options {
+            position: absolute;
+            display: none;
+            top: 110%;
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 100;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .custom-options.open {
+            display: block;
+        }
+
+        .option-group-label {
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            background-color: var(--input-bg);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .custom-option {
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .custom-option:hover {
+            background-color: var(--input-bg);
+            color: var(--primary-color);
+        }
+
+        .custom-option.selected {
+            background-color: var(--input-bg);
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .badge-ai {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
         }
 
         /* =========================================
@@ -176,6 +253,11 @@
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
             margin-bottom: 1.5rem;
+        }
+
+        .controls-row.disabled {
+            opacity: 0.5;
+            pointer-events: none;
         }
 
         .range-wrapper span {
@@ -212,23 +294,20 @@
             letter-spacing: 0.5px;
         }
 
-        /* スライダーコンテナ */
         .custom-slider-container {
             width: 100%;
-            height: 3px; /* 極細 */
+            height: 3px;
             background-color: var(--slider-track);
             border-radius: 2px;
             position: relative;
             overflow: hidden;
         }
 
-        /* 中身のバー */
         .custom-slider-fill {
             height: 100%;
             width: 0%;
             background-color: var(--slider-fill);
             border-radius: 2px;
-            /* 非常に滑らかに動くようにtransitionを設定 */
             transition: width 0.1s linear; 
             position: relative;
         }
@@ -246,7 +325,7 @@
             flex: 1;
             padding: 0.8rem;
             border: none;
-            border-radius: 24px; /* 丸みのあるピル型 */
+            border-radius: 24px;
             font-size: 0.95rem;
             font-weight: 500;
             cursor: pointer;
@@ -254,7 +333,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
         }
 
         .btn:active {
@@ -262,7 +341,7 @@
         }
 
         .btn-primary {
-            background-color: var(--text-primary); /* モノクロ基調 */
+            background-color: var(--text-primary);
             color: var(--card-bg);
         }
         .btn-primary:hover {
@@ -307,7 +386,7 @@
             color: var(--text-primary);
         }
         .btn-icon-text.active i {
-            color: var(--danger-color); /* ONインジケータ */
+            color: var(--danger-color);
         }
 
         /* =========================================
@@ -315,12 +394,12 @@
            ========================================= */
         .caption-container {
             position: absolute;
-            bottom: 120px; /* コントロールの上に配置 */
+            bottom: 120px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: center;
-            pointer-events: none; /* 下の要素をクリック可能に */
+            pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s ease;
             z-index: 10;
@@ -341,10 +420,65 @@
             text-align: center;
             display: inline-block;
             max-width: 90%;
-            /* YouTubeフォントスタイル */
             font-family: 'Roboto', Arial, sans-serif;
             font-weight: 400;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* =========================================
+           ローディングオーバーレイ (CSS)
+           ========================================= */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(2px);
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .loading-overlay {
+                background-color: rgba(31, 31, 31, 0.8);
+            }
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        /* スピナー SVG アニメーション */
+        .loader {
+            width: 80px;
+            height: 80px;
+            animation: rotate 1s linear infinite;
+            transform-origin: center center;
+        }
+
+        .loader .path {
+            stroke: var(--spinner-color);
+            stroke-linecap: round;
+            stroke-dasharray: 89 150;
+            stroke-dashoffset: 0;
+        }
+
+        @keyframes rotate {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loader-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
 
     </style>
@@ -362,15 +496,25 @@
             <textarea id="text-input" placeholder="ここに読み上げたい文章を入力してください。"></textarea>
         </div>
 
-        <!-- 設定エリア -->
+        <!-- カスタム音声選択エリア -->
         <div class="input-group">
-            <label for="voice-select">音声</label>
-            <select id="voice-select">
-                <option value="">Loading voices...</option>
-            </select>
+            <label>音声</label>
+            <div class="custom-select-wrapper" id="custom-select-wrapper">
+                <div class="custom-select-trigger" id="custom-select-trigger">
+                    <span>音声を読み込み中...</span>
+                </div>
+                <div class="custom-options" id="custom-options">
+                    <!-- JSで挿入されます -->
+                </div>
+            </div>
+            <!-- 隠しフィールド (値保持用) -->
+            <input type="hidden" id="selected-voice-val" value="">
+            <input type="hidden" id="selected-voice-type" value=""> <!-- 'browser' or 'api' -->
+            <input type="hidden" id="selected-api-voice-name" value=""> <!-- API用の音声名 (Aoedeなど) -->
         </div>
 
-        <div class="controls-row">
+        <!-- 速度・ピッチ (AIモデル選択時は無効化される) -->
+        <div class="controls-row" id="controls-row">
             <div class="range-wrapper">
                 <span>速度 <span id="rate-value">1.0</span></span>
                 <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
@@ -410,11 +554,29 @@
             </button>
         </div>
 
+        <!-- ローディングオーバーレイ (SVGスピナー) -->
+        <div id="loading-overlay" class="loading-overlay">
+            <svg id="spinner" class="loader" viewBox="0 0 50 50">
+                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="1.5"></circle>
+            </svg>
+            <div class="loader-text">Gemini 2.5 TTSで生成中...</div>
+        </div>
+
     </div>
+
+    <!-- 隠しオーディオ要素 (API音声再生用) -->
+    <audio id="audio-player" style="display:none;"></audio>
 
     <script>
         // ==========================================
-        // JavaScript Logic
+        // Configuration
+        // ==========================================
+        
+        // ★重要: ここにCloudflare WorkerのURLを入力してください
+        const CLOUDFLARE_WORKER_URL = "https://tts.nden14800.workers.dev";
+
+        // ==========================================
+        // Logic
         // ==========================================
 
         const synth = window.speechSynthesis;
@@ -423,15 +585,25 @@
         let startTime = 0;
         let estimatedDuration = 0;
         let isSubtitleOn = false;
-        let sentenceMap = []; // 字幕用の文章マップ
+        let sentenceMap = [];
 
         // DOM Elements
         const textInput = document.getElementById('text-input');
-        const voiceSelect = document.getElementById('voice-select');
+        
+        // Custom Select Elements
+        const customSelectWrapper = document.getElementById('custom-select-wrapper');
+        const customSelectTrigger = document.getElementById('custom-select-trigger');
+        const customOptions = document.getElementById('custom-options');
+        const selectedVoiceVal = document.getElementById('selected-voice-val');
+        const selectedVoiceType = document.getElementById('selected-voice-type');
+        const selectedApiVoiceName = document.getElementById('selected-api-voice-name');
+
         const rateInput = document.getElementById('rate');
         const pitchInput = document.getElementById('pitch');
         const rateValue = document.getElementById('rate-value');
         const pitchValue = document.getElementById('pitch-value');
+        const controlsRow = document.getElementById('controls-row');
+
         const speakBtn = document.getElementById('speak-btn');
         const stopBtn = document.getElementById('stop-btn');
         
@@ -440,199 +612,380 @@
         const subtitleBtn = document.getElementById('subtitle-btn');
         const captionContainer = document.getElementById('caption-container');
         const captionText = document.getElementById('caption-text');
+        
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const audioPlayer = document.getElementById('audio-player');
 
-        // 音声リスト取得
+        // ==========================================
+        // Voice Initialization & Custom UI
+        // ==========================================
+
         function populateVoiceList() {
             voices = synth.getVoices();
-            voiceSelect.innerHTML = '';
+            customOptions.innerHTML = ''; // Clear existing
 
-            if (voices.length === 0) {
-                const option = document.createElement('option');
-                option.textContent = "音声が見つかりません";
-                voiceSelect.appendChild(option);
-                return;
+            // 1. AI Cloud Voices Group (Gemini)
+            const aiGroupLabel = document.createElement('div');
+            aiGroupLabel.className = 'option-group-label';
+            aiGroupLabel.textContent = 'Google Gemini 2.5 Flash TTS';
+            customOptions.appendChild(aiGroupLabel);
+
+            // Gemini TTS Voices (Puck, Charon, Kore, Fenrir, Aoede)
+            const geminiVoices = [
+                { name: "Gemini 2.5 - Aoede (Deep)", id: "Aoede" },
+                { name: "Gemini 2.5 - Puck (Soft)", id: "Puck" },
+                { name: "Gemini 2.5 - Charon (Deep)", id: "Charon" },
+                { name: "Gemini 2.5 - Kore (Soft)", id: "Kore" },
+                { name: "Gemini 2.5 - Fenrir (Deep)", id: "Fenrir" }
+            ];
+
+            geminiVoices.forEach(v => {
+                addCustomOption({
+                    name: v.name,
+                    value: "gemini-2.5-flash-tts", // Model ID
+                    type: "api",
+                    badge: "AI",
+                    apiVoiceName: v.id
+                });
+            });
+
+            // 2. Browser Voices Group
+            const browserGroupLabel = document.createElement('div');
+            browserGroupLabel.className = 'option-group-label';
+            browserGroupLabel.textContent = 'Browser Voices';
+            customOptions.appendChild(browserGroupLabel);
+
+            if (voices.length > 0) {
+                // Sort Japanese first
+                voices.sort((a, b) => {
+                    const aLang = a.lang.toUpperCase();
+                    const bLang = b.lang.toUpperCase();
+                    if (aLang.includes('JP') && !bLang.includes('JP')) return -1;
+                    if (!aLang.includes('JP') && bLang.includes('JP')) return 1;
+                    return 0;
+                });
+
+                voices.forEach((voice) => {
+                    addCustomOption({
+                        name: `${voice.name} (${voice.lang})`,
+                        value: voice.name,
+                        type: "browser",
+                        badge: null,
+                        apiVoiceName: null
+                    });
+                });
+            } else {
+                const noVoice = document.createElement('div');
+                noVoice.className = 'custom-option';
+                noVoice.textContent = "Loading browser voices...";
+                customOptions.appendChild(noVoice);
             }
 
-            // 日本語優先ソート
-            voices.sort((a, b) => {
-                const aLang = a.lang.toUpperCase();
-                const bLang = b.lang.toUpperCase();
-                if (aLang.includes('JP') && !bLang.includes('JP')) return -1;
-                if (!aLang.includes('JP') && bLang.includes('JP')) return 1;
-                return 0;
-            });
-
-            voices.forEach((voice) => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                if (voice.default) option.textContent += ' [Default]';
-                option.setAttribute('data-name', voice.name);
-                voiceSelect.appendChild(option);
-            });
-
-            const jpIndex = Array.from(voiceSelect.options).findIndex(opt => opt.text.includes('JP') || opt.text.includes('ja'));
-            if (jpIndex >= 0) voiceSelect.selectedIndex = jpIndex;
+            // Default selection: Select first option (Gemini Aoede)
+            if (!selectedVoiceVal.value) {
+                const firstOption = customOptions.querySelector('.custom-option[data-value]');
+                if (firstOption) {
+                    selectOption(
+                        firstOption.dataset.value, 
+                        firstOption.dataset.name, 
+                        firstOption.dataset.type,
+                        firstOption.dataset.apivoice
+                    );
+                }
+            }
         }
 
+        function addCustomOption({ name, value, type, badge, apiVoiceName }) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'custom-option';
+            optionDiv.dataset.value = value;
+            optionDiv.dataset.name = name;
+            optionDiv.dataset.type = type;
+            if(apiVoiceName) optionDiv.dataset.apivoice = apiVoiceName;
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = name;
+            optionDiv.appendChild(textSpan);
+
+            if (badge) {
+                const badgeSpan = document.createElement('span');
+                badgeSpan.className = 'badge-ai';
+                badgeSpan.textContent = badge;
+                optionDiv.appendChild(badgeSpan);
+            }
+
+            optionDiv.addEventListener('click', () => {
+                selectOption(value, name, type, apiVoiceName);
+                customSelectWrapper.classList.remove('open');
+                customSelectTrigger.classList.remove('open');
+                customOptions.classList.remove('open');
+            });
+
+            customOptions.appendChild(optionDiv);
+        }
+
+        function selectOption(value, name, type, apiVoiceName) {
+            selectedVoiceVal.value = value;
+            selectedVoiceType.value = type;
+            if(apiVoiceName) selectedApiVoiceName.value = apiVoiceName;
+            
+            const triggerText = customSelectTrigger.querySelector('span') || customSelectTrigger;
+            triggerText.textContent = name;
+
+            // Update UI selected state
+            document.querySelectorAll('.custom-option').forEach(opt => {
+                if (opt.dataset.name === name) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            });
+
+            // APIモードの時は速度・ピッチスライダーを無効化（API側でサポートが限定的、または複雑なため）
+            if (type === 'api') {
+                controlsRow.classList.add('disabled');
+            } else {
+                controlsRow.classList.remove('disabled');
+            }
+        }
+
+        // Dropdown toggle logic
+        customSelectTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = customOptions.classList.contains('open');
+            if (isOpen) {
+                customOptions.classList.remove('open');
+                customSelectTrigger.classList.remove('open');
+            } else {
+                customOptions.classList.add('open');
+                customSelectTrigger.classList.add('open');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!customSelectWrapper.contains(e.target)) {
+                customOptions.classList.remove('open');
+                customSelectTrigger.classList.remove('open');
+            }
+        });
+
+        // Initialize voices
         populateVoiceList();
         if (speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = populateVoiceList;
         }
 
-        // 時間フォーマット (m:ss)
+        // ==========================================
+        // Helper Functions
+        // ==========================================
+
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60);
             const s = Math.floor(seconds % 60);
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        // 推定時間の計算
         function calculateEstimatedDuration(text, rate) {
-            // 日本語は約4-5文字/秒、英語は単語数ベースだが簡易計算
             const baseCharsPerSec = 5; 
             const duration = (text.length / baseCharsPerSec) / rate;
             return Math.max(1, duration);
         }
 
-        // 文章を句読点で分割してマップ化（字幕用）
         function parseSentencesForCaptions(text) {
-            // 句点、読点、感嘆符、疑問符、改行などで分割しつつ、区切り文字も含める
-            // Split regex lookbehindなどが使えない環境も考慮し、簡易的なマッチングを行う
             const regex = /[^.。、！？\n\r]+[.。、！？\n\r]*/g;
             const matches = text.match(regex);
-            
             if (!matches) return [{ text: text, start: 0, end: text.length }];
-
             let currentIndex = 0;
             return matches.map(sentence => {
                 const start = currentIndex;
                 const end = currentIndex + sentence.length;
                 currentIndex = end;
-                return { 
-                    text: sentence.trim(), // 空白除去
-                    start: start, 
-                    end: end 
-                };
-            }).filter(item => item.text.length > 0); // 空の行を除外
-        }
-
-        // 読み上げ開始
-        function speak() {
-            if (synth.speaking) {
-                synth.cancel();
-                setTimeout(startSpeaking, 100);
-            } else {
-                startSpeaking();
-            }
-        }
-
-        function startSpeaking() {
-            const text = textInput.value;
-            if (text === '') return;
-
-            // 字幕用の解析
-            sentenceMap = parseSentencesForCaptions(text);
-
-            const utterThis = new SpeechSynthesisUtterance(text);
-            const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
-            
-            for (let i = 0; i < voices.length; i++) {
-                if (voices[i].name === selectedOption) {
-                    utterThis.voice = voices[i];
-                    break;
-                }
-            }
-
-            const rate = parseFloat(rateInput.value);
-            utterThis.pitch = pitchInput.value;
-            utterThis.rate = rate;
-
-            estimatedDuration = calculateEstimatedDuration(text, rate);
-            
-            utterThis.onstart = () => {
-                speakBtn.disabled = true;
-                if(isSubtitleOn) captionContainer.classList.add('show');
-                
-                startTime = Date.now();
-                clearInterval(timerInterval);
-                timerInterval = setInterval(updateProgress, 50); // 滑らかさのため50ms更新
-            };
-
-            utterThis.onend = () => {
-                resetUI();
-            };
-
-            utterThis.onerror = (e) => {
-                console.error(e);
-                resetUI();
-            };
-
-            // 字幕の更新ロジック (boundaryイベント利用)
-            utterThis.onboundary = (event) => {
-                if (!isSubtitleOn) return;
-
-                const charIndex = event.charIndex;
-                
-                // 現在の文字位置が含まれる文を探す
-                const currentSentence = sentenceMap.find(s => charIndex >= s.start && charIndex < s.end);
-                
-                if (currentSentence) {
-                    // 同じテキストなら更新しない（DOM負荷軽減）
-                    if (captionText.textContent !== currentSentence.text) {
-                        captionText.textContent = currentSentence.text;
-                    }
-                }
-            };
-
-            synth.speak(utterThis);
-        }
-
-        function updateProgress() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            
-            let percent = (elapsed / estimatedDuration) * 100;
-            if (percent > 100) percent = 100;
-
-            progressBar.style.width = `${percent}%`;
-            timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(estimatedDuration)}`;
-
-            if (elapsed > estimatedDuration + 10 && synth.speaking) {
-                // 安全装置: 推定時間を大幅に超えても終わらない場合（通常はonendが呼ばれる）
-            }
+                return { text: sentence.trim(), start: start, end: end };
+            }).filter(item => item.text.length > 0);
         }
 
         function resetUI() {
             speakBtn.disabled = false;
             captionContainer.classList.remove('show');
             captionText.textContent = '';
-            
             clearInterval(timerInterval);
             progressBar.style.width = '0%';
             timeDisplay.textContent = '0:00 / 0:00';
+            loadingOverlay.classList.remove('active');
         }
 
-        // イベントリスナー
-        rateInput.addEventListener('input', () => rateValue.textContent = parseFloat(rateInput.value).toFixed(1));
-        pitchInput.addEventListener('input', () => pitchValue.textContent = parseFloat(pitchInput.value).toFixed(1));
+        // ==========================================
+        // Playback Logic
+        // ==========================================
+
+        async function speak() {
+            const text = textInput.value;
+            if (!text) return;
+
+            // Stop any current playback
+            stopPlayback();
+
+            const type = selectedVoiceType.value;
+            sentenceMap = parseSentencesForCaptions(text);
+
+            if (type === 'api') {
+                await speakViaAPI(text);
+            } else {
+                speakViaBrowser(text);
+            }
+        }
+
+        function stopPlayback() {
+            if (synth.speaking) synth.cancel();
+            
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            
+            resetUI();
+        }
+
+        // 1. Browser Speech Logic
+        function speakViaBrowser(text) {
+            const utterThis = new SpeechSynthesisUtterance(text);
+            const selectedName = selectedVoiceVal.value;
+            
+            const voice = voices.find(v => v.name === selectedName);
+            if (voice) utterThis.voice = voice;
+
+            const rate = parseFloat(rateInput.value);
+            utterThis.pitch = pitchInput.value;
+            utterThis.rate = rate;
+
+            estimatedDuration = calculateEstimatedDuration(text, rate);
+
+            utterThis.onstart = () => {
+                speakBtn.disabled = true;
+                if(isSubtitleOn) captionContainer.classList.add('show');
+                
+                startTime = Date.now();
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    let percent = (elapsed / estimatedDuration) * 100;
+                    if (percent > 100) percent = 100;
+                    progressBar.style.width = `${percent}%`;
+                    timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(estimatedDuration)}`;
+                }, 50);
+            };
+
+            utterThis.onend = resetUI;
+            utterThis.onerror = (e) => { console.error(e); resetUI(); };
+
+            utterThis.onboundary = (event) => {
+                if (!isSubtitleOn) return;
+                const charIndex = event.charIndex;
+                const currentSentence = sentenceMap.find(s => charIndex >= s.start && charIndex < s.end);
+                if (currentSentence && captionText.textContent !== currentSentence.text) {
+                    captionText.textContent = currentSentence.text;
+                }
+            };
+
+            synth.speak(utterThis);
+        }
+
+        // 2. API (Gemini via Cloudflare Worker) Logic
+        async function speakViaAPI(text) {
+            loadingOverlay.classList.add('active');
+            
+            try {
+                const modelName = selectedVoiceVal.value; // "gemini-2.5-flash-tts"
+                const voiceName = selectedApiVoiceName.value; // "Aoede" etc.
+
+                const response = await fetch(CLOUDFLARE_WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        model: modelName,
+                        voice: voiceName
+                    })
+                });
+
+                if (!response.ok) {
+                    let errText = await response.text();
+                    try {
+                        const errJson = JSON.parse(errText);
+                        errText = errJson.error || errText;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                
+                audioPlayer.src = audioUrl;
+                audioPlayer.playbackRate = 1.0; // API音声は常に1倍速再生 (スライダー無視)
+                
+                loadingOverlay.classList.remove('active');
+                
+                // Play
+                audioPlayer.play().then(() => {
+                    speakBtn.disabled = true;
+                    if(isSubtitleOn) {
+                        captionContainer.classList.add('show');
+                        captionText.textContent = text; // API再生時は全文表示または簡易表示
+                    }
+                }).catch(e => {
+                    console.error("Audio Play Error", e);
+                    alert("音声の再生に失敗しました。");
+                    loadingOverlay.classList.remove('active');
+                });
+
+            } catch (error) {
+                console.error(error);
+                alert("AI音声の生成に失敗しました:\n" + error.message);
+                loadingOverlay.classList.remove('active');
+            }
+        }
+
+        // Audio Player Events
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (!audioPlayer.paused) {
+                const current = audioPlayer.currentTime;
+                const duration = audioPlayer.duration || 1;
+                
+                let percent = (current / duration) * 100;
+                progressBar.style.width = `${percent}%`;
+                timeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+            }
+        });
+
+        audioPlayer.addEventListener('ended', resetUI);
+        
+        // ==========================================
+        // Event Listeners
+        // ==========================================
+        rateInput.addEventListener('input', () => {
+            const val = parseFloat(rateInput.value);
+            rateValue.textContent = val.toFixed(1);
+        });
+        
+        pitchInput.addEventListener('input', () => {
+            pitchValue.textContent = parseFloat(pitchInput.value).toFixed(1);
+        });
 
         speakBtn.addEventListener('click', speak);
-        stopBtn.addEventListener('click', () => {
-            synth.cancel();
-            resetUI();
-        });
+        stopBtn.addEventListener('click', stopPlayback);
 
         subtitleBtn.addEventListener('click', () => {
             isSubtitleOn = !isSubtitleOn;
             if (isSubtitleOn) {
                 subtitleBtn.innerHTML = '<i class="bi bi-cc-square-fill"></i> 字幕 (ON)';
                 subtitleBtn.classList.add('active');
-                if (synth.speaking) captionContainer.classList.add('show');
+                if (synth.speaking || !audioPlayer.paused) {
+                    captionContainer.classList.add('show');
+                    // もし再生中ならテキストをセット
+                    if(!audioPlayer.paused) captionText.textContent = textInput.value;
+                }
             } else {
                 subtitleBtn.innerHTML = '<i class="bi bi-cc-square"></i> 字幕 (OFF)';
                 subtitleBtn.classList.remove('active');
                 captionContainer.classList.remove('show');
             }
         });
+
     </script>
 </body>
 </html>
